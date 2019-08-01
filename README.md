@@ -30,19 +30,19 @@ AWS通过AWS IoT SDK提供对mqtt over websocket的支持。
 ## 3.1 IAM Identities(user, group, role)
 
 可以使用IAM提供的身份来认证设备。设备需要预置或者通过其他方式获取security credential，再通过SigV4的签名算法对与IoT交互的请求进行签名。AWS IoT服务通过SigV4的签名算法来认证设备的身份。通过认证后，再根据身份拥有的IAM policy来对请求进行鉴权，流程如下图所示：
-![IAM]https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/IAM.png
+![IAM](https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/IAM.png)
 ## 3.2 Cognito Identities
 
 使用使用第三方的身份，如google，facebook，OIDC，SAML等，或者用户开发的自定义的身份，然后在Cognito身份池中交换得到Cognito身份，并使用这个身份来认证设备。Cognito身份的鉴权方式比较负责，首先Cognito身份池会为经过认证的身份配置一个role，进而使用role的policy对请求进行鉴权，另外，Cognito身份也会在IoT中绑定一个IoT Policy，这个IoT policy也会对请求进行鉴权。所以说，Cognito身份的最终权限是身份池role的IAM policy与Cognito身份的IoT policy的交集。由于IoT policy支持很多策略变量，通常的建议是，IAM policy可以给一个相对大的权限，然后在IoT policy中实现精细化的权限管理。
-![cognito]https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/Cognito.png
+![cognito](https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/Cognito.png)
 ## 3.3 X509证书
 
 使用X509证书来认证设备。认证通过后，通过X509证书绑定的IoT policy对请求进行鉴权。
-![X509]https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/X509.png
+![X509](https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/X509.png)
 ## 3.4 Custom Authentication
 
 使用自己定义的authorizer来认证设备，实际上是通过编写的lambda逻辑来对设备进行认证。认证通过后，lambda函数返回一个IoT policy，AWS IoT根据这个IoT policy来对请求进行鉴权。
-![custom]https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/Custom.png
+![custom](https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/Custom.png)
 # 4. 准备工作
 
 安装配置aws cli，安装jq
