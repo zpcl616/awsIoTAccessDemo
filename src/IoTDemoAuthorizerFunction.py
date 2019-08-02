@@ -13,16 +13,26 @@ def lambda_handler(event, context):
         policyDocument = {}
         policyDocument['Version'] = '2012-10-17'
         policyDocument['Statement'] = []
+        
         statement0 = {}
-        statement0['Action'] = 'iot:Publish'
+        statement0['Action'] = []
+        statement0['Action'].append('iot:Publish')
+        statement0['Action'].append('iot:Receive')
         statement0['Effect'] = 'Allow'
         statement0['Resource'] = "arn:aws-cn:iot:cn-north-1:*:topic/IoTDemo/"+device_id
         policyDocument['Statement'].append(statement0)
+        
         statement1 = {}
         statement1['Action'] = 'iot:Subscribe'
         statement1['Effect'] = 'Allow'
         statement1['Resource'] = "arn:aws-cn:iot:cn-north-1:*:topicfilter/IoTDemo/"+device_id
         policyDocument['Statement'].append(statement1)
+        
+        statement2 = {}
+        statement2['Action'] = 'iot:Connect'
+        statement2['Effect'] = 'Allow'
+        statement2['Resource'] = "arn:aws-cn:iot:cn-north-1:*:client/"+device_id
+        policyDocument['Statement'].append(statement2)
 
         policyDocuments.append(policyDocument)
         authResponse = {}
@@ -36,4 +46,5 @@ def lambda_handler(event, context):
     except Exception as e:
         print(str(e))
         return {}
+
 

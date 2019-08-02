@@ -45,7 +45,7 @@ def on_message(client, userdata, msg):
 token = {"device_id":device_name}
 token_str = base64.b64encode(json.dumps(token))
 
-command = "/bin/echo -n %s | /usr/local/bin/openssl dgst -sha256 -sign %s 2>/dev/null| /usr/local/bin/openssl base64 2>/dev/null" % (token_str,private_key)
+command = "/bin/echo -n %s | openssl dgst -sha256 -sign %s 2>/dev/null| openssl base64 2>/dev/null" % (token_str,private_key)
 
 return_code, return_str = commands.getstatusoutput(command)
 signature = return_str.strip().replace('\n','')
