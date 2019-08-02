@@ -47,10 +47,10 @@ sessionToken=response['Credentials']['SessionToken']
 accessKeyId=response['Credentials']['AccessKeyId']
 secretKey=response['Credentials']['SecretKey']
 
-#iot_client = boto3.client('iot',region_name=region,aws_access_key_id=accessKeyId,aws_secret_access_key=secretKey,aws_session_token=sessionToken)
+iot_client = boto3.client('iot',region_name=region,aws_access_key_id=accessKeyId,aws_secret_access_key=secretKey,aws_session_token=sessionToken)
 
 response = iot_client.attach_policy(
-    policyName=device_name,
+    policyName=policy_name,
     target=identityId
 )
 
