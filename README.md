@@ -10,20 +10,17 @@ AWS IoT服务支持多种协议和认证授权的方式，且分别有其适用�
 
 ## 2.1 http协议
 
-http协议是互联网中最为常见的协议，http也支持后面提到所有的认证和授权的方式。但是在物联网的场景中，它也有着协议开销比较大的缺点，另外http只有请求响应的模式，不支持物联网场景中非常重要的订阅模式，不能支持下行消息的下发。
-http协议可以使用各种语言的http库进行编码，AWS也通过AWS SDK对http协议提供了部分支持。
+http协议是互联网中最为常见的协议，http也支持后面提到所有的认证和授权的方式。但是在物联网的场景中，它也有着协议开销比较大等缺点，另外http只有请求响应的模式，不支持物联网场景中非常重要的订阅模式，不能支持下行消息的下发。
 
 ## 2.2 mqtt协议
 
 mqtt协议是物联网场景中使用最为广泛的协议，具有协议开销小，支持发布订阅等所有模式的优点。它只支持X509证书的认证方式。
-AWS通过AWS IoT SDK提供对mqtt协议的支持。
 
 ## 2.3 mqtt over websocket
 
 mqtt over websocket是基于websocket上的mqtt协议，也具备mqtt协议的优点，另外它使用了443的端口，在网络环境可达性上比mqtt更有优势，但是也相对更为复杂一些。
-AWS通过AWS IoT SDK提供对mqtt over websocket的支持。
 
-# 3. AWS IoT支持的认证和授权
+# 3. AWS IoT支持的认证和授权方式
 
 设备接入AWS IoT的时候，必须要进行认证，确认设备的合法身份。通过认证后，还需要对设备的请求进行鉴权，只有经过授权的请求才会被AWS IoT接受。不同的设备认证方式，其授权方式也可能会有所不同。
 
@@ -33,7 +30,7 @@ AWS通过AWS IoT SDK提供对mqtt over websocket的支持。
 ![IAM](https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/IAM.png)
 ## 3.2 Cognito Identities
 
-使用使用第三方的身份，如google，facebook，OIDC，SAML等，或者用户开发的自定义的身份，然后在Cognito身份池中交换得到Cognito身份，并使用这个身份来认证设备。Cognito身份的鉴权方式比较负责，首先Cognito身份池会为经过认证的身份配置一个role，进而使用role的policy对请求进行鉴权，另外，Cognito身份也会在IoT中绑定一个IoT Policy，这个IoT policy也会对请求进行鉴权。所以说，Cognito身份的最终权限是身份池role的IAM policy与Cognito身份的IoT policy的交集。由于IoT policy支持很多策略变量，通常的建议是，IAM policy可以给一个相对大的权限，然后在IoT policy中实现精细化的权限管理。
+使用第三方的身份，如google，facebook，OIDC，SAML等，或者用户开发的自定义的身份，然后在Cognito身份池中交换得到Cognito身份，并使用这个身份来认证设备。Cognito身份的鉴权方式比较负责，首先Cognito身份池会为经过认证的身份配置一个role，进而使用role的policy对请求进行鉴权，另外，Cognito身份也会在IoT中绑定一个IoT Policy，这个IoT policy也会对请求进行鉴权。所以说，Cognito身份的最终权限是身份池role的IAM policy与Cognito身份的IoT policy的交集。由于IoT policy支持IoT相关的策略变量，所以通常的建议是，IAM policy可以给一个相对大的权限，然后在IoT policy中通过策略变量来实现精细化的权限管理。
 ![cognito](https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/Cognito.png)
 ## 3.3 X509证书
 
@@ -45,12 +42,19 @@ AWS通过AWS IoT SDK提供对mqtt over websocket的支持。
 ![custom](https://github.com/zpcl616/awsIoTAccessDemo/blob/master/resources/Custom.png)
 # 4. 准备工作
 
-安装配置aws cli，安装jq
+安装配置aws cli，安装各种依赖包
 
 ```
+sudo yum install python-pip libtool git jq -y
 pip install awscli --user
-pip install jq --user
+pip install AWSIoTPythonSDK --user
+pip install paho-mqtt --user
+pip install boto3 --user
+pip install flask --user
+pip install argparse cheetah oauth PrettyTable pyserial --user
 ```
+
+配置aws cli权限
 
 下载代码
 
@@ -71,13 +75,13 @@ cd awsIoTAccessDemo/src
 wget https://www.amazontrust.com/repository/AmazonRootCA1.pem
 ```
 
-依次登陆AWS控制台，打开服务—〉AWS IoT—〉测试—〉订阅主题—〉输入“IoTDemo/#”—〉点击订阅主题。
+依次登陆AWS BJS控制台，打开服务—〉AWS IoT—〉测试—〉订阅主题—〉输入“IoTDemo/#”—〉点击订阅主题。
 Demo过程中设备发送的消息可以在这里看到结果。
 
 获取account id
 
 ```
-account_id=`aws sts get-caller-identity | jq .Account|sed 's/"//g'`
+account_id=``aws sts get-caller-identity | jq .Account|sed 's/"//g'``
 ```
 
 获取AWS IoT的customer endpoint
@@ -103,14 +107,14 @@ aws iam create-user --user-name IoTDeviceUser
 
 ```
 aws iam create-access-key \
-    --user-name IoTDeviceUser1 > /tmp/IoT_demo_access_key
+    --user-name IoTDeviceUser > /tmp/IoT_demo_access_key
 ```
 
 记录下AccessKeyId和SecretAccessKey
 
 ```
-AccessKeyId=`cat /tmp/IoT_demo_access_key| jq .AccessKey.AccessKeyId`
-SecretAccessKey=`cat /tmp/IoT_demo_access_key| jq .AccessKey.SecretAccessKey`
+AccessKeyId=`cat /tmp/IoT_demo_access_key| jq .AccessKey.AccessKeyId| sed 's/"//g'`
+SecretAccessKey=`cat /tmp/IoT_demo_access_key| jq .AccessKey.SecretAccessKey| sed 's/"//g'`
 ```
 
 ### 5.1.1 http协议
@@ -132,7 +136,7 @@ device_IAM_http_policy_arn=`aws iam create-policy \
             ]
         }
     ]
-}" | jq .Policy.Arn`
+}" | jq .Policy.Arn | sed 's/"//g'`
 ```
 
 把policy绑定IAM user。
@@ -183,7 +187,7 @@ device_IAM_websocket_policy_arn=`aws iam create-policy \
             \"Resource\": \"arn:aws-cn:iot:cn-north-1:${account_id}:topicfilter/IoTDemo/device_IAM_websocket\"
         }
     ]
-}" | jq .Policy.Arn`
+}" | jq .Policy.Arn | sed 's/"//g'`
 ```
 
 把policy绑定IAM user。
@@ -206,7 +210,7 @@ python device_IAM_websocket.py --endpoint_prefix ${endpoint_prefix} \
 
 ```
 cd ~/awsIoTAccessDemo/src
-account_id=`aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'`
+account_id=``aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'``
 endpoint_prefix=`aws iot describe-endpoint \
 | jq .endpointAddress | sed 's/"//g'| awk -F . '{print $1}'`
 ```
@@ -219,7 +223,7 @@ endpoint_prefix=`aws iot describe-endpoint \
 IdentityPoolId=`aws cognito-identity create-identity-pool \
 --identity-pool-name IoTDevicesPool \
 --no-allow-unauthenticated-identities \
---developer-provider-name login.IoTDemo.dev`
+--developer-provider-name login.IoTDemo.dev | jq .IdentityPoolId| sed 's/"//g'`
 ```
 
 
@@ -227,8 +231,7 @@ IdentityPoolId=`aws cognito-identity create-identity-pool \
 
 ```
 IoTDeviceRoleInCognitoArn=`aws iam create-role \
---role-name IoTDeviceRoleInCognito \
---assume-role-policy-document "{
+--role-name IoTDeviceRoleInCognito --assume-role-policy-document "{
   \"Version\": \"2012-10-17\",
   \"Statement\": [
     {
@@ -247,7 +250,7 @@ IoTDeviceRoleInCognitoArn=`aws iam create-role \
       }
     }
   ]
-}" | jq .Role.Arn`
+}" | jq .Role.Arn | sed 's/"//g'`
 ```
 
 
@@ -273,10 +276,10 @@ IoTPolicyManagerArn=`aws iam create-policy \
             \"Sid\": \"VisualEditor0\",
             \"Effect\": \"Allow\",
             \"Action\": \"iot:AttachPolicy\",
-            \"Resource\": \"arn:aws-cn:iot:cn-north-1:${account_id}:policy/*\"
+            \"Resource\": \"*\"
         }
     ]
-}" | jq .Policy.Arn`
+}" | jq .Policy.Arn| sed 's/"//g'`
 ```
 
 把policy attach到role
@@ -293,6 +296,7 @@ Cognito身份池支持多种身份认证的方式，这里使用了developer pro
 aws iam create-user --user-name developerIdpUser
 ```
 
+
 创建策略，并把策略attach到developerIdpUser
 
 ```
@@ -308,7 +312,7 @@ developerIdpPolicy_arn=`aws iam create-policy \
         \"Resource\": \"arn:aws-cn:cognito-identity:cn-north-1:${account_id}:identitypool/${IdentityPoolId}\"
         }
     ]
-}" | jq .Policy.Arn`
+}" | jq .Policy.Arn | sed 's/"//g'`
 ```
 
 ```
@@ -326,8 +330,8 @@ aws iam create-access-key \
 记录下AccessKeyId和SecretAccessKey
 
 ```
-AccessKeyId=`cat /tmp/IoT_demo_access_key2 | jq .AccessKey.AccessKeyId`
-SecretAccessKey=`cat /tmp/IoT_demo_access_key2 | jq .AccessKey.SecretAccessKey`
+AccessKeyId=`cat /tmp/IoT_demo_access_key2 | jq .AccessKey.AccessKeyId| sed 's/"//g'`
+SecretAccessKey=`cat /tmp/IoT_demo_access_key2 | jq .AccessKey.SecretAccessKey| sed 's/"//g'`
 ```
 
 运行developer_provider.py
@@ -345,7 +349,7 @@ developer_provider.py会在在http://0.0.0.0:8383/ 接受请求，并返回Cogni
 
 ```
 cd ~/awsIoTAccessDemo/src
-account_id=`aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'`
+account_id=``aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'``
 endpoint_prefix=`aws iot describe-endpoint \
 | jq .endpointAddress | sed 's/"//g'| awk -F . '{print $1}'`
 ```
@@ -364,11 +368,11 @@ IoTDeviceCognitoHttpPolicyArn=`aws iam create-policy \
             \"Effect\": \"Allow\",
             \"Action\": \"iot:Publish\",
             \"Resource\": [
-                \"arn:aws-cn:iot:cn-north-1:${account id}:topic/IoTDemo/device_cognito_http\"
+                \"arn:aws-cn:iot:cn-north-1:${account_id}:topic/IoTDemo/device_cognito_http\"
             ]
         }
     ]
-}" | jq .Policy.Arn`
+}" | jq .Policy.Arn | sed 's/"//g'`
 ```
 
 ```
@@ -436,7 +440,7 @@ IoTDeviceCognitoWebsocketPolicyArn=`aws iam create-policy \
             \"Resource\": \"arn:aws-cn:iot:cn-north-1:${account_id}:topicfilter/IoTDemo/device_cognito_websocket\"
         }
     ]
-} | jq .Policy.Arn`
+}" | jq .Policy.Arn | sed 's/"//g'`
 ```
 
 ```
@@ -473,7 +477,7 @@ aws iot create-policy --policy-name IoTPolicyForDeviceCognitoWebsocket \
             \"Resource\": \"arn:aws-cn:iot:cn-north-1:${account_id}:topicfilter/IoTDemo/device_cognito_websocket\"
         }
     ]
-} 
+}" 
 ```
 
 运行设备模拟程序
@@ -485,13 +489,13 @@ python device_cognito_websocket.py \
 --endpoint_prefix ${endpoint_prefix}
 ```
 
-设备模拟程序会一直运行，订阅自己的topic。在控制台输入要发送到AWS IoT的消息，“data from device Cognito websocket.”，设备会接收到自己发送的这个消息。同时，在控制台中也可以看到此设备发送的消息。
+设备模拟程序会一直运行，订阅自己的topic。在控制台输入要发送到AWS IoT的消息，如“data from device Cognito websocket.”，设备会接收到自己发送的这个消息。同时，在控制台中也可以看到此设备发送的消息。
 
 执行ctrl+C停止程序，或者重新打开一个shell窗口。如果打开新的shell窗口，需要定位到awsIoTAccessDemo/src目录，同时获取变量account_id和endpoint_prefix。
 
 ```
 cd ~/awsIoTAccessDemo/src
-account_id=`aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'`
+account_id=``aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'``
 endpoint_prefix=`aws iot describe-endpoint \
 | jq .endpointAddress | sed 's/"//g'| awk -F . '{print $1}'`
 ```
@@ -506,13 +510,13 @@ endpoint_prefix=`aws iot describe-endpoint \
 device_x509_http_crt_arn=`aws iot create-keys-and-certificate \
 --set-as-active --certificate-pem-outfile device_x509_http.crt \
 --public-key-outfile device_x509_http.pem --private-key-outfile device_x509_http.key \
-| jq .certificateArn`
+| jq .certificateArn | sed 's/"//g'`
 ```
 
 为设备创建IoT policy
 
 ```
-aws iot create-policy --policy name IoTPolicyForDeviceX509Http \
+aws iot create-policy --policy-name IoTPolicyForDeviceX509Http \
 --policy-document "{
   \"Version\": \"2012-10-17\",
   \"Statement\": [
@@ -537,7 +541,7 @@ aws iot attach-policy --policy-name IoTPolicyForDeviceX509Http \
 运行设备模拟程序
 
 ```
-python device_x509_http.py --data "data from device x509 http."\
+python device_x509_http.py --data "data from device x509 http." \
 --endpoint_prefix ${endpoint_prefix} \
 --client_cert ./device_x509_http.crt \
 --client_key ./device_x509_http.key
@@ -553,13 +557,13 @@ python device_x509_http.py --data "data from device x509 http."\
 device_x509_mqtt_crt_arn=`aws iot create-keys-and-certificate \
 --set-as-active --certificate-pem-outfile device_x509_mqtt.crt \
 --public-key-outfile device_x509_mqtt.pem --private-key-outfile device_x509_mqtt.key \
-| jq .certificateArn`
+| jq .certificateArn | sed 's/"//g'`
 ```
 
 为设备创建IoT policy
 
 ```
-aws iot create-policy --policy name IoTPolicyForDeviceX509Mqtt \
+aws iot create-policy --policy-name IoTPolicyForDeviceX509Mqtt \
 --policy-document "{
   \"Version\": \"2012-10-17\",
     \"Statement\": [
@@ -585,7 +589,7 @@ aws iot create-policy --policy name IoTPolicyForDeviceX509Mqtt \
             \"Resource\": \"arn:aws-cn:iot:cn-north-1:${account_id}:topicfilter/IoTDemo/device_x509_mqtt\"
         }
     ]
-} 
+}"
 ```
 
 把IoT policy attach到设备证书
@@ -610,7 +614,7 @@ python device_x509_mqtt.py \
 
 ```
 cd ~/awsIoTAccessDemo/src
-account_id=`aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'`
+account_id=``aws sts ``get``-``caller``-``identity ``|`` jq ``.``Account``|``sed ``'s/"//g'``
 endpoint_prefix=`aws iot describe-endpoint \
 | jq .endpointAddress | sed 's/"//g'| awk -F . '{print $1}'`
 ```
@@ -687,7 +691,7 @@ aws lambda add-permission --function-name IoTDemoAuthorizerFunction \
 
 运行设备模拟程序
 
-> 需要注意的是目前实际测试custom authentication认证授权方式下，不支持ATS endpoint，代码中需注意。另外custom authentication也暂时没有python SDK的支持，需要自己编写代码。
+> 需要注意的是目前实际测试custom authentication认证授权方式下，不支持ATS endpoint，代码中需注意。另外custom authentication也暂时没有python SDK的支持，需要自己编写相关的代码。
 
 ```
 python device_custom_auth_http.py \
@@ -701,7 +705,7 @@ python device_custom_auth_http.py \
 
 ### 5.4.2 mqtt over websocket协议
 
-由于Custom Authentication不支持ATS endpoint，需要下载VeriSign endpoint的证书。
+Websocket协议需要双向ssl认证，由于Custom Authentication暂时不支持ATS endpoint，需要下载VeriSign endpoint的证书。
 
 ```
 wget https://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem
@@ -712,7 +716,9 @@ wget https://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-C
 ```
 python device_custom_auth_websocket.py \
 --endpoint_prefix ${endpoint_prefix} \
---authorizer_name `IoTDemoAuthorizer``
+--authorizer_name `IoTDemoAuthorizer \``
 --private_key authorizer_private.pem`
 ```
+
+设备模拟程序会一直运行，订阅自己的topic。在控制台输入要发送到AWS IoT的消息，“data from device custom websocket.”，设备会接收到自己发送的这个消息。同时，在控制台中也可以看到此设备发送的消息。
 
