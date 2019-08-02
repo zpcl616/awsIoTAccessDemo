@@ -66,6 +66,7 @@ def pub_msg():
     try:
         pri_loopCount = 0
         while True:
+            print 'please input:',
             msg = raw_input()
             private_data = msg
             message = {}
@@ -74,6 +75,7 @@ def pub_msg():
             messageJson = json.dumps(message)
             myAWSIoTMQTTClient.publish(private_topic, messageJson, 1)
             pri_loopCount += 1
+            time.sleep(2)
     except:
         sys.exit()
 
